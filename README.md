@@ -1,1 +1,1 @@
-# n-queens-game-
+# n-queens-game
