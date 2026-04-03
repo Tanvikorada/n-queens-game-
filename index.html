@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N-Queens — AI Strategy Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════
+   RESET & ROOT
+════════════════════════════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --gold:#c9a84c;--gold-l:#e8c97a;--gold-d:#7a5e1a;
+  --dark:#07070e;--panel:#0f0f1c;--border:#1a1a2e;
+  --text:#e8e0d0;--muted:#60607a;
+}
+html,body{width:100%;min-height:100%;background:var(--dark);color:var(--text);
+  font-family:'Crimson Pro',serif;overflow-x:hidden;}
+button{font-family:inherit;cursor:pointer;}
+
+/* ════════════════════════════════════
+   CANVAS (particles)
+════════════════════════════════════ */
+#cvs{position:fixed;inset:0;z-index:0;pointer-events:none;}
+
+/* ════════════════════════════════════
+   INTRO
+════════════════════════════════════ */
+#intro{
+  position:fixed;inset:0;z-index:50;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;padding:20px;
+}
+.ig{position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -5%,rgba(201,168,76,.20) 0%,transparent 60%),
+    radial-gradient(ellipse 35% 40% at 15% 85%,rgba(100,60,200,.08) 0%,transparent 50%),
+    radial-gradient(ellipse 35% 40% at 85% 75%,rgba(201,168,76,.07) 0%,transparent 50%);
+  animation:igPulse 7s ease-in-out infinite;}
+@keyframes igPulse{0%,100%{opacity:.7}50%{opacity:1}}
+.sl{position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:repeating-linear-gradient(0deg,transparent 0,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px);}
+.cg{position:absolute;inset:0;pointer-events:none;
+  background-image:repeating-conic-gradient(rgba(255,255,255,.022) 0% 25%,transparent 0% 50%);
+  background-size:60px 60px;animation:cgd 45s linear infinite;}
+@keyframes cgd{to{background-position:120px 120px}}
+
+/* Crown */
+.icrown{
+  font-size:clamp(56px,10vw,96px);line-height:1;
+  display:block;position:relative;z-index:2;
+  filter:drop-shadow(0 0 36px rgba(201,168,76,.95)) drop-shadow(0 0 80px rgba(201,168,76,.45));
+  opacity:0;margin-bottom:14px;
+  animation:crownIn 1s cubic-bezier(.34,1.56,.64,1) forwards .15s,
+            crownF  3.5s ease-in-out infinite 1.2s;}
+@keyframes crownIn{
+  0%{opacity:0;transform:translateY(-90px) scale(.4) rotate(-25deg);}
+  65%{opacity:1;transform:translateY(10px) scale(1.08) rotate(4deg);}
+  100%{opacity:1;transform:translateY(0) scale(1) rotate(0deg);}}
+@keyframes crownF{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+
+/* Title */
+.ititle{
+  font-family:'Cinzel',serif;
+  font-size:clamp(46px,9vw,100px);font-weight:900;
+  letter-spacing:.1em;line-height:1;text-align:center;
+  background:linear-gradient(135deg,var(--gold-d) 0%,var(--gold) 30%,var(--gold-l) 50%,var(--gold) 70%,var(--gold-d) 100%);
+  background-size:200% auto;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  position:relative;z-index:2;opacity:0;
+  animation:titleIn 1.2s cubic-bezier(.16,1,.3,1) forwards .65s,
+            shimmer  4s linear infinite 2s;}
+@keyframes titleIn{
+  0%{opacity:0;transform:scaleX(.55) translateY(28px);letter-spacing:.5em;filter:blur(14px);}
+  100%{opacity:1;transform:scaleX(1) translateY(0);letter-spacing:.1em;filter:blur(0);}}
+@keyframes shimmer{to{background-position:200% center}}
+
+/* Subtitle */
+.isub{font-size:clamp(10px,1.5vw,14px);letter-spacing:.45em;text-transform:uppercase;
+  color:var(--muted);position:relative;z-index:2;margin-top:13px;
+  opacity:0;animation:fsu .9s ease forwards 1.35s;}
+
+/* Divider */
+.iline{width:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  margin:26px auto;position:relative;z-index:2;
+  animation:lineX .8s ease forwards 1.85s;}
+@keyframes lineX{to{width:150px}}
+
+/* Tagline */
+.itag{font-size:clamp(13px,2vw,18px);color:#9a9080;font-style:italic;
+  text-align:center;max-width:480px;line-height:1.85;padding:0 20px;
+  position:relative;z-index:2;opacity:0;animation:fsu .9s ease forwards 2.15s;}
+
+/* Rule cards */
+.rrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+  gap:11px;max-width:660px;width:90%;margin-top:30px;position:relative;z-index:2;}
+.rcard{background:rgba(255,255,255,.03);border:1px solid rgba(201,168,76,.11);
+  border-radius:10px;padding:15px 12px;text-align:center;
+  opacity:0;transform:translateY(18px);
+  transition:border-color .3s,transform .3s,box-shadow .3s;}
+.rcard.rv{animation:cardIn .55s cubic-bezier(.34,1.56,.64,1) forwards;}
+@keyframes cardIn{to{opacity:1;transform:translateY(0)}}
+.rcard:hover{border-color:rgba(201,168,76,.45);transform:translateY(-4px);
+  box-shadow:0 8px 28px rgba(201,168,76,.09);}
+.ricon{font-size:24px;margin-bottom:7px;}
+.rttl{font-family:'Cinzel',serif;font-size:9px;letter-spacing:.22em;color:var(--gold);
+  margin-bottom:5px;text-transform:uppercase;}
+.rdsc{font-size:11px;color:#747082;line-height:1.5;}
+
+/* Start button */
+.sbtn{
+  margin-top:38px;padding:14px 58px;
+  font-family:'Cinzel',serif;font-size:12px;letter-spacing:.3em;text-transform:uppercase;
+  background:transparent;border:1px solid var(--gold);color:var(--gold);
+  position:relative;z-index:2;overflow:hidden;border-radius:3px;transition:color .35s;
+  opacity:0;animation:fsu .9s ease forwards 2.95s;}
+.sbtn::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--gold-d),var(--gold),var(--gold-l));
+  transform:translateX(-105%);transition:transform .45s cubic-bezier(.16,1,.3,1);z-index:-1;}
+.sbtn:hover{color:var(--dark);}
+.sbtn:hover::before{transform:translateX(0);}
+.sbtn::after{content:'';position:absolute;inset:0;border-radius:3px;
+  animation:bpulse 2.5s ease-in-out infinite 3.5s;}
+@keyframes bpulse{
+  0%{box-shadow:0 0 0 0 rgba(201,168,76,.45)}
+  50%{box-shadow:0 0 0 14px rgba(201,168,76,0)}
+  100%{box-shadow:0 0 0 0 rgba(201,168,76,0)}}
+
+@keyframes fsu{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* Intro exit */
+#intro.exit{animation:iExit .7s cubic-bezier(.4,0,1,1) forwards;pointer-events:none;}
+@keyframes iExit{0%{opacity:1;transform:scale(1);filter:blur(0)}100%{opacity:0;transform:scale(1.07);filter:blur(9px)}}
+
+/* ════════════════════════════════════
+   GAME SCREEN
+════════════════════════════════════ */
+#game{display:none;flex-direction:column;align-items:center;
+  min-height:100vh;padding:26px 14px 60px;
+  position:relative;z-index:10;opacity:0;transition:opacity .65s ease;}
+#game.show{opacity:1;}
+.gh{text-align:center;margin-bottom:24px;}
+.gttl{font-family:'Cinzel',serif;font-size:clamp(18px,4vw,32px);font-weight:700;
+  letter-spacing:.14em;
+  background:linear-gradient(135deg,var(--gold-d),var(--gold),var(--gold-l),var(--gold));
+  background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;animation:shimmer 5s linear infinite;}
+.gsub{font-size:11px;letter-spacing:.28em;color:var(--muted);margin-top:5px;text-transform:uppercase;}
+
+/* Controls */
+.cbar{display:flex;align-items:center;gap:10px;margin-bottom:22px;flex-wrap:wrap;justify-content:center;}
+.cgrp{display:flex;align-items:center;gap:8px;background:var(--panel);
+  border:1px solid var(--border);padding:8px 14px;border-radius:6px;}
+.clbl{font-family:'Cinzel',serif;font-size:9px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;}
+.szbtn{width:29px;height:29px;background:transparent;border:1px solid var(--border);
+  color:var(--text);font-size:17px;border-radius:4px;transition:all .2s;}
+.szbtn:hover{border-color:var(--gold);color:var(--gold);}
+.szv{font-family:'JetBrains Mono',monospace;font-size:19px;color:var(--gold);min-width:26px;text-align:center;}
+.abtn{padding:9px 18px;font-family:'Cinzel',serif;font-size:9px;letter-spacing:.2em;
+  text-transform:uppercase;border:1px solid;border-radius:4px;
+  transition:all .22s;white-space:nowrap;background:transparent;}
+.bg{border-color:var(--gold); color:var(--gold);}  .bg:hover{background:var(--gold);color:var(--dark);}
+.bb{border-color:#3a7bd5;color:#3a7bd5;}            .bb:hover{background:#3a7bd5;color:#fff;}
+.bw{border-color:var(--muted);color:var(--muted);}  .bw:hover{border-color:var(--text);color:var(--text);}
+.bp{border-color:#9b59b6;color:#9b59b6;}            .bp:hover{background:#9b59b6;color:#fff;}
+
+/* Board area */
+.garea{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap;justify-content:center;
+  width:100%;max-width:1000px;}
+#board{display:grid;border:2px solid rgba(201,168,76,.22);
+  box-shadow:0 0 80px rgba(201,168,76,.07),0 0 0 1px rgba(201,168,76,.09);}
+.cell{display:flex;align-items:center;justify-content:center;cursor:pointer;
+  position:relative;transition:filter .12s;user-select:none;}
+.lt{background:#231d35;} .dk{background:#160f26;}
+.cell:hover{filter:brightness(1.4);}
+.cell.safe{background:rgba(39,174,96,.22)!important;}
+.cell.atk {background:rgba(192,57,43,.28)!important;}
+
+.qn{font-size:clamp(13px,3.2vw,37px);line-height:1;z-index:2;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,.9));
+  animation:qIn .3s cubic-bezier(.34,1.56,.64,1);}
+@keyframes qIn{from{transform:scale(0) rotate(-180deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+.qn.bad{filter:drop-shadow(0 0 10px rgba(200,50,40,1));animation:qShk .37s ease;}
+@keyframes qShk{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+
+/* Info panel */
+.ipnl{flex:1;min-width:248px;max-width:298px;display:flex;flex-direction:column;gap:13px;}
+.pc{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:15px 17px;}
+.pct{font-family:'Cinzel',serif;font-size:9px;letter-spacing:.26em;color:var(--gold);
+  text-transform:uppercase;margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.sr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.sl2{font-size:12px;color:var(--muted);}
+.sv{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text);}
+.pb{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:9px;}
+.pf{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-l));border-radius:2px;transition:width .3s;width:0%;}
+.stxt{font-size:12px;line-height:1.6;color:#948888;font-style:italic;margin-top:11px;}
+.stxt.ok{color:#2ecc71;font-style:normal;} .stxt.er{color:#e74c3c;font-style:normal;}
+.lbx{font-family:'JetBrains Mono',monospace;font-size:10px;color:#3a5060;
+  line-height:1.9;max-height:148px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.le{animation:lein .25s ease;}
+@keyframes lein{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.lp{color:#27ae60;} .lr2{color:#c0392b;} .lx{color:#e67e22;} .ls2{color:#3498db;}
+
+/* ════════════════════════════════════
+   WIN OVERLAY
+════════════════════════════════════ */
+#winOv{display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.78);backdrop-filter:blur(7px);
+  align-items:center;justify-content:center;}
+#winOv.show{display:flex;animation:fi .4s ease;}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+.wcard{background:var(--panel);border:1px solid rgba(201,168,76,.42);
+  border-radius:14px;padding:38px 46px;text-align:center;max-width:400px;width:90%;
+  animation:cp .5s cubic-bezier(.34,1.56,.64,1);}
+@keyframes cp{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+.wcrn{font-size:58px;display:block;animation:crownF 2s ease-in-out infinite;margin-bottom:13px;}
+.wttl{font-family:'Cinzel',serif;font-size:24px;color:var(--gold);margin-bottom:7px;}
+.wsub{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:20px;}
+.wsts{display:flex;gap:26px;justify-content:center;margin-bottom:24px;}
+.ws{text-align:center;}
+.wsv{font-family:'JetBrains Mono',monospace;font-size:21px;color:var(--gold);}
+.wsl{font-size:9px;color:var(--muted);letter-spacing:.22em;text-transform:uppercase;}
+.wbtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+
+/* ════════════════════════════════════
+   LEARN SCREEN
+════════════════════════════════════ */
+#learn{display:none;max-width:860px;margin:0 auto;padding:48px 20px 80px;
+  position:relative;z-index:10;opacity:0;transition:opacity .5s ease;}
+#learn.show{opacity:1;}
+.lhdr{text-align:center;margin-bottom:42px;}
+.lttl{font-family:'Cinzel',serif;font-size:clamp(20px,4vw,36px);
+  background:linear-gradient(135deg,var(--gold-d),var(--gold),var(--gold-l));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:7px;}
+.ldiv{width:65px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:13px auto 0;}
+.lgrd{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:14px;margin-bottom:34px;}
+.lcard{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px;
+  transition:border-color .3s,transform .3s;}
+.lcard:hover{border-color:rgba(201,168,76,.35);transform:translateY(-4px);}
+.lic{font-size:28px;margin-bottom:9px;}
+.lct{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.12em;color:var(--gold);margin-bottom:7px;}
+.lcx{font-size:13px;color:#888898;line-height:1.75;}
+.sttl{font-family:'Cinzel',serif;font-size:17px;color:var(--gold);
+  margin:34px 0 13px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.cb{background:rgba(0,0,0,.38);border:1px solid var(--border);border-left:3px solid var(--gold);
+  border-radius:6px;padding:16px 20px;margin:14px 0;
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:#6a90b0;
+  line-height:2.2;white-space:pre;overflow-x:auto;}
+.kw{color:#c792ea;} .fn{color:#82aaff;} .cm{color:#4a6070;} .st{color:#c3e88d;} .nm{color:#f78c6c;}
+.tbl2{width:100%;border-collapse:collapse;font-size:12px;margin:13px 0;}
+.tbl2 th{font-family:'Cinzel',serif;font-size:9px;letter-spacing:.2em;color:var(--gold);
+  padding:9px 13px;border-bottom:1px solid var(--border);text-align:left;text-transform:uppercase;}
+.tbl2 td{padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.04);
+  color:#888898;font-family:'JetBrains Mono',monospace;font-size:11px;}
+.tbl2 tr:hover td{background:rgba(255,255,255,.02);}
+.chart{display:flex;align-items:flex-end;gap:9px;height:108px;padding:7px 0;}
+.bw2{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;}
+.bb2{width:100%;background:linear-gradient(to top,var(--gold),var(--gold-l));border-radius:3px 3px 0 0;}
+.bl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);}
+.bv{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gold);}
+.tag2{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;
+  font-family:'JetBrains Mono',monospace;letter-spacing:.08em;margin:3px;}
+.tb2{background:rgba(52,152,219,.13);color:#3498db;border:1px solid rgba(52,152,219,.3);}
+.tg2{background:rgba(39,174,96,.13);color:#27ae60;border:1px solid rgba(39,174,96,.3);}
+.to2{background:rgba(230,126,34,.13);color:#e67e22;border:1px solid rgba(230,126,34,.3);}
+.tp2{background:rgba(155,89,182,.13);color:#9b59b6;border:1px solid rgba(155,89,182,.3);}
+.bbk{display:inline-flex;align-items:center;gap:7px;margin-bottom:26px;
+  font-family:'Cinzel',serif;font-size:9px;letter-spacing:.2em;color:var(--muted);
+  text-transform:uppercase;background:none;border:none;transition:color .2s;}
+.bbk:hover{color:var(--gold);}
+.bbot{display:block;margin:38px auto 0;padding:12px 48px;font-family:'Cinzel',serif;
+  font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  background:transparent;border:1px solid var(--gold);color:var(--gold);
+  border-radius:4px;transition:all .3s;position:relative;overflow:hidden;}
+.bbot::before{content:'';position:absolute;inset:0;background:var(--gold);
+  transform:translateX(-105%);transition:transform .4s cubic-bezier(.16,1,.3,1);z-index:-1;}
+.bbot:hover{color:var(--dark);} .bbot:hover::before{transform:translateX(0);}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+@media(max-width:600px){
+  .ipnl{max-width:100%;width:100%;}
+  .garea{flex-direction:column;align-items:center;}
+  .cbar{gap:7px;}
+  .wcard{padding:26px 18px;}
+}
+</style>
+</head>
+<body>
+
+<canvas id="cvs"></canvas>
+
+<!-- ════════════════════════════
+     INTRO
+════════════════════════════ -->
+<div id="intro">
+  <div class="ig"></div>
+  <div class="sl"></div>
+  <div class="cg"></div>
+
+  <span class="icrown">♛</span>
+  <h1 class="ititle">N-QUEENS</h1>
+  <p class="isub">Backtracking &nbsp;·&nbsp; AI &nbsp;·&nbsp; Strategy</p>
+  <div class="iline"></div>
+  <p class="itag">
+    Place <em>N</em> queens on an N×N chessboard so no two threaten each other.
+    One of the most iconic puzzles in Artificial Intelligence.
+  </p>
+
+  <div class="rrow" id="rrow">
+    <div class="rcard">
+      <div class="ricon">♛</div>
+      <div class="rttl">Place Queens</div>
+      <div class="rdsc">Click any cell to place or remove a queen on the board.</div>
+    </div>
+    <div class="rcard">
+      <div class="ricon">⚔️</div>
+      <div class="rttl">No Conflicts</div>
+      <div class="rdsc">No two queens may share a row, column, or diagonal.</div>
+    </div>
+    <div class="rcard">
+      <div class="ricon">🎯</div>
+      <div class="rttl">Fill the Board</div>
+      <div class="rdsc">Place exactly N queens — one per row — zero conflicts.</div>
+    </div>
+    <div class="rcard">
+      <div class="ricon">🤖</div>
+      <div class="rttl">AI Solve</div>
+      <div class="rdsc">Watch backtracking + pruning solve it step by step.</div>
+    </div>
+  </div>
+
+  <button class="sbtn" id="btnStart">Begin the Challenge</button>
+</div>
+
+<!-- ════════════════════════════
+     GAME
+════════════════════════════ -->
+<div id="game">
+  <div class="gh">
+    <h2 class="gttl">♛ &nbsp;N-QUEENS CHALLENGE&nbsp; ♛</h2>
+    <p class="gsub">Place all queens &nbsp;·&nbsp; No conflicts allowed</p>
+  </div>
+
+  <div class="cbar">
+    <div class="cgrp">
+      <span class="clbl">Board Size</span>
+      <button class="szbtn" id="btnM">−</button>
+      <span  class="szv"   id="szv">8</span>
+      <button class="szbtn" id="btnP">+</button>
+    </div>
+    <button class="abtn bb" id="btnHint">💡 Hint</button>
+    <button class="abtn bg" id="btnSolve">🤖 AI Solve</button>
+    <button class="abtn bw" id="btnReset">↺ Reset</button>
+    <button class="abtn bp" id="btnLearn">📖 Learn</button>
+  </div>
+
+  <div class="garea">
+    <div id="board"></div>
+    <div class="ipnl">
+
+      <div class="pc">
+        <div class="pct">Game Status</div>
+        <div class="sr"><span class="sl2">Queens placed</span><span class="sv" id="elQC">0 / 8</span></div>
+        <div class="sr"><span class="sl2">Conflicts</span>    <span class="sv" id="elCC" style="color:#e74c3c">0</span></div>
+        <div class="sr"><span class="sl2">Safe cells</span>   <span class="sv" id="elSC">—</span></div>
+        <div class="pb"><div class="pf" id="elPB"></div></div>
+        <div class="stxt" id="elST">Click a cell to place a queen ♛</div>
+      </div>
+
+      <div class="pc">
+        <div class="pct">Algorithm Log</div>
+        <div class="lbx" id="elLog">
+          <div class="le" style="color:#2a3f50">› Awaiting moves…</div>
+        </div>
+      </div>
+
+      <div class="pc">
+        <div class="pct">AI Stats</div>
+        <div class="sr"><span class="sl2">Backtracks</span>    <span class="sv" id="elBT">—</span></div>
+        <div class="sr"><span class="sl2">Pruned branches</span><span class="sv" id="elPR">—</span></div>
+        <div class="sr"><span class="sl2">Nodes visited</span> <span class="sv" id="elND">—</span></div>
+        <div class="sr"><span class="sl2">Known solutions</span><span class="sv" id="elSO" style="color:var(--gold)">92</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════
+     WIN OVERLAY
+════════════════════════════ -->
+<div id="winOv">
+  <div class="wcard">
+    <span class="wcrn">♛</span>
+    <div class="wttl">Puzzle Solved!</div>
+    <div class="wsub" id="elWS">All queens placed with zero conflicts.</div>
+    <div class="wsts">
+      <div class="ws"><div class="wsv" id="elWQ">—</div><div class="wsl">Queens</div></div>
+      <div class="ws"><div class="wsv" id="elWM">—</div><div class="wsl">Moves</div></div>
+    </div>
+    <div class="wbtns">
+      <button class="abtn bw" id="btnWA">Play Again</button>
+      <button class="abtn bp" id="btnWL">📖 Learn More</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════
+     LEARN
+════════════════════════════ -->
+<div id="learn">
+  <button class="bbk" id="btnBT">← Back to Game</button>
+  <div class="lhdr">
+    <h2 class="lttl">The N-Queens Problem</h2>
+    <p style="color:var(--muted);font-size:13px;margin-top:6px;">Algorithms, Complexity &amp; AI Concepts</p>
+    <div class="ldiv"></div>
+  </div>
+
+  <div class="lgrd">
+    <div class="lcard"><div class="lic">♟️</div><div class="lct">The Problem</div>
+      <div class="lcx">Place N non-attacking queens on an N×N board. A queen attacks along rows, columns, and both diagonals. For N=8, there are 92 solutions out of 4 billion+ possible placements.</div></div>
+    <div class="lcard"><div class="lic">🌲</div><div class="lct">Backtracking</div>
+      <div class="lcx">A depth-first strategy that builds a solution incrementally and <em>backtracks</em> the moment a constraint is violated. It navigates a decision tree systematically.</div></div>
+    <div class="lcard"><div class="lic">✂️</div><div class="lct">Pruning</div>
+      <div class="lcx">Forward checking cuts off dead branches early. If any future row has zero safe columns after a placement, that entire subtree is abandoned immediately.</div></div>
+    <div class="lcard"><div class="lic">🧮</div><div class="lct">Constraint Satisfaction</div>
+      <div class="lcx">N-Queens is a classic CSP. Variables = queen positions, Domains = board columns, Constraints = no-attack rules. Backtracking is the standard CSP solver.</div></div>
+    <div class="lcard"><div class="lic">🔗</div><div class="lct">State Space</div>
+      <div class="lcx">Naive brute-force faces N^N states. Placing one queen per row reduces it to N!. Forward-checking pruning cuts this by orders of magnitude further.</div></div>
+    <div class="lcard"><div class="lic">🎓</div><div class="lct">Real-World Use</div>
+      <div class="lcx">These techniques power VLSI circuit design, parallel memory systems, job scheduling, and constraint logic programming — real AI engineering problems.</div></div>
+  </div>
+
+  <h3 class="sttl">Algorithm Pseudocode</h3>
+  <div class="cb"><span class="fn">solve</span>(board, row):
+  <span class="kw">if</span> row == N:
+    <span class="kw">return</span> <span class="st">SUCCESS</span>               <span class="cm">// All N queens placed!</span>
+
+  <span class="kw">for</span> col <span class="kw">in</span> <span class="nm">0</span>..N-<span class="nm">1</span>:
+    <span class="kw">if</span> <span class="fn">isSafe</span>(board, row, col):     <span class="cm">// Constraint check</span>
+      board[row][col] = <span class="st">QUEEN</span>        <span class="cm">// Place queen</span>
+
+      <span class="kw">if</span> <span class="fn">forwardCheck</span>(board, row+<span class="nm">1</span>):  <span class="cm">// Pruning!</span>
+        result = <span class="fn">solve</span>(board, row+<span class="nm">1</span>)   <span class="cm">// Recurse deeper</span>
+        <span class="kw">if</span> result == <span class="st">SUCCESS</span>: <span class="kw">return</span> <span class="st">SUCCESS</span>
+
+      board[row][col] = <span class="st">EMPTY</span>        <span class="cm">// Backtrack</span>
+
+  <span class="kw">return</span> <span class="st">FAILURE</span></div>
+
+  <h3 class="sttl">Forward Checking (Pruning)</h3>
+  <div class="cb"><span class="fn">forwardCheck</span>(board, nextRow):
+  <span class="kw">for</span> row <span class="kw">in</span> nextRow..N-<span class="nm">1</span>:
+    safeCols = <span class="nm">0</span>
+    <span class="kw">for</span> col <span class="kw">in</span> <span class="nm">0</span>..N-<span class="nm">1</span>:
+      <span class="kw">if</span> <span class="fn">isSafe</span>(board, row, col): safeCols++
+    <span class="kw">if</span> safeCols == <span class="nm">0</span>:
+      <span class="kw">return</span> <span class="st">FALSE</span>   <span class="cm">// Prune this entire subtree!</span>
+  <span class="kw">return</span> <span class="st">TRUE</span></div>
+
+  <h3 class="sttl">Solutions by Board Size</h3>
+  <div class="pc" style="padding:16px;">
+    <div class="chart" id="elChart"></div>
+    <table class="tbl2" style="margin-top:13px;">
+      <tr><th>N</th><th>Solutions</th><th>Backtracks</th><th>Pruning Impact</th></tr>
+      <tr><td>4</td><td>2</td>     <td>~8</td>    <td>Moderate</td></tr>
+      <tr><td>5</td><td>10</td>    <td>~15</td>   <td>Moderate</td></tr>
+      <tr><td>6</td><td>4</td>     <td>~20</td>   <td>High</td></tr>
+      <tr><td>7</td><td>40</td>    <td>~40</td>   <td>High</td></tr>
+      <tr><td>8</td><td>92</td>    <td>~114</td>  <td>Very High</td></tr>
+      <tr><td>10</td><td>724</td>  <td>~500</td>  <td>Very High</td></tr>
+      <tr><td>12</td><td>14,200</td><td>~3,000</td><td>Critical</td></tr>
+    </table>
+  </div>
+
+  <h3 class="sttl">Key CS Concepts</h3>
+  <div style="margin-top:8px;line-height:2.5;">
+    <span class="tag2 tb2">Backtracking</span>
+    <span class="tag2 tb2">DFS</span>
+    <span class="tag2 tg2">Forward Checking</span>
+    <span class="tag2 tg2">Constraint Propagation</span>
+    <span class="tag2 to2">Pruning</span>
+    <span class="tag2 to2">State Space Search</span>
+    <span class="tag2 tp2">CSP</span>
+    <span class="tag2 tp2">Recursion</span>
+    <span class="tag2 tb2">Combinatorics</span>
+    <span class="tag2 tg2">Heuristics</span>
+  </div>
+
+  <h3 class="sttl">Why It Works So Well</h3>
+  <div class="pc" style="margin-top:13px;">
+    <div class="lcx" style="font-size:14px;line-height:1.9;">
+      The core insight is <strong style="color:var(--gold)">constraint propagation</strong>: placing a queen eliminates an entire row, column, and two diagonals from future consideration simultaneously.<br><br>
+      Forward checking amplifies this — if any future row would be left with zero valid placements, we prune the whole subtree before wasting any work.<br><br>
+      For N=8: brute-force visits ~16 million nodes. Backtracking + forward checking visits fewer than 200. That is a <strong style="color:#27ae60">99.999 % reduction</strong> in search space.
+    </div>
+  </div>
+
+  <button class="bbot" id="btnBB">↩ Back to Game</button>
+</div>
+
+<!-- ════════════════════════════
+     SCRIPT
+════════════════════════════ -->
+<script>
+/* ── Particles ── */
+(function(){
+  var cvs=document.getElementById('cvs'),ctx=cvs.getContext('2d');
+  var W,H,pts;
+  function rsz(){W=cvs.width=innerWidth;H=cvs.height=innerHeight;}
+  function mk(){return{x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.3+.3,vx:(Math.random()-.5)*.33,vy:(Math.random()-.5)*.33,a:Math.random()};}
+  function init(){rsz();pts=Array.from({length:80},mk);}
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(function(p){
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0)p.x=W;if(p.x>W)p.x=0;
+      if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle='rgba(201,168,76,'+(p.a*.42)+')';ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',rsz);
+  init();draw();
+})();
+
+/* ── Card stagger ── */
+document.addEventListener('DOMContentLoaded',function(){
+  var cards=document.querySelectorAll('.rcard');
+  cards.forEach(function(c,i){setTimeout(function(){c.classList.add('rv');},2550+i*130);});
+});
+
+/* ════ STATE ════ */
+var N=8,board=[],solving=false,solTmr=null;
+var backtracks=0,pruned=0,nodes=0,moves=0;
+var SOLS={4:2,5:10,6:4,7:40,8:92,9:352,10:724,11:2680,12:14200};
+
+/* ════ WIRE ALL BUTTONS ════ */
+document.addEventListener('DOMContentLoaded',function(){
+  /* intro */
+  document.getElementById('btnStart').addEventListener('click',startGame);
+  /* game */
+  document.getElementById('btnM'    ).addEventListener('click',function(){changeN(-1);});
+  document.getElementById('btnP'    ).addEventListener('click',function(){changeN(1);});
+  document.getElementById('btnHint' ).addEventListener('click',giveHint);
+  document.getElementById('btnSolve').addEventListener('click',aiSolve);
+  document.getElementById('btnReset').addEventListener('click',resetBoard);
+  document.getElementById('btnLearn').addEventListener('click',showLearn);
+  /* win */
+  document.getElementById('btnWA').addEventListener('click',function(){closeWin();resetBoard();});
+  document.getElementById('btnWL').addEventListener('click',function(){closeWin();showLearn();});
+  /* learn */
+  document.getElementById('btnBT').addEventListener('click',backToGame);
+  document.getElementById('btnBB').addEventListener('click',backToGame);
+});
+
+/* ════ INTRO → GAME ════ */
+function startGame(){
+  var intro=document.getElementById('intro');
+  intro.classList.add('exit');
+  setTimeout(function(){
+    intro.style.display='none';
+    var g=document.getElementById('game');
+    g.style.display='flex';
+    setTimeout(function(){g.classList.add('show');},25);
+    initBoard();
+  },680);
+}
+
+/* ════ BOARD ════ */
+function initBoard(){
+  board=[];
+  for(var r=0;r<N;r++){board.push([]);for(var c=0;c<N;c++)board[r].push(false);}
+  backtracks=0;pruned=0;nodes=0;moves=0;solving=false;
+  if(solTmr)clearTimeout(solTmr);
+  document.getElementById('szv'  ).textContent=N;
+  document.getElementById('elBT' ).textContent='—';
+  document.getElementById('elPR' ).textContent='—';
+  document.getElementById('elND' ).textContent='—';
+  document.getElementById('elSO' ).textContent=SOLS[N]?SOLS[N].toLocaleString():'?';
+  document.getElementById('elLog').innerHTML='<div class="le" style="color:#2a3f50">› Awaiting moves…</div>';
+  setSt('Click a cell to place a queen ♛','');
+  renderBoard();updateStats();
+}
+
+function renderBoard(){
+  var el=document.getElementById('board');
+  var avail=Math.min(innerWidth-52,520);
+  var sz=Math.min(Math.floor(avail/N),58);
+  el.style.gridTemplateColumns='repeat('+N+', '+sz+'px)';
+  el.innerHTML='';
+  for(var r=0;r<N;r++){
+    for(var c=0;c<N;c++){
+      var cell=document.createElement('div');
+      cell.className='cell '+((r+c)%2===0?'lt':'dk');
+      cell.style.width=cell.style.height=sz+'px';
+      cell.dataset.r=r;cell.dataset.c=c;
+      (function(row,col){cell.addEventListener('click',function(){if(!solving)toggle(row,col);});})(r,c);
+      if(board[r][c]){
+        var q=document.createElement('span');
+        q.className='qn'+(isSafeCell(r,c)?'':' bad');
+        q.textContent='♛';cell.appendChild(q);
+      }
+      el.appendChild(cell);
+    }
+  }
+}
+
+function gcell(r,c){return document.querySelector('[data-r="'+r+'"][data-c="'+c+'"]');}
+
+/* ════ LOGIC ════ */
+function toggle(r,c){
+  board[r][c]=!board[r][c];moves++;
+  addLog(board[r][c]?'p':'r',board[r][c]?'Placed ♛ at ('+( r+1)+','+(c+1)+')':'Removed ♛ from ('+(r+1)+','+(c+1)+')');
+  renderBoard();updateStats();checkWin();
+}
+
+/* isSafe for backtracking (rows 0..row-1 already placed) */
+function isSafe(b,row,col){
+  for(var i=0;i<row;i++){
+    for(var j=0;j<N;j++){
+      if(b[i][j]){
+        if(j===col)return false;
+        if(Math.abs(i-row)===Math.abs(j-col))return false;
+      }
+    }
+  }
+  return true;
+}
+
+/* isSafeCell for manual play (check against all other queens) */
+function isSafeCell(r,c){
+  for(var i=0;i<N;i++){
+    for(var j=0;j<N;j++){
+      if((i!==r||j!==c)&&board[i][j]){
+        if(i===r||j===c||Math.abs(i-r)===Math.abs(j-c))return false;
+      }
+    }
+  }
+  return true;
+}
+
+function cntConflicts(){
+  var qs=[];
+  for(var r=0;r<N;r++)for(var c=0;c<N;c++)if(board[r][c])qs.push([r,c]);
+  var n=0;
+  for(var i=0;i<qs.length;i++)for(var j=i+1;j<qs.length;j++){
+    if(qs[i][0]===qs[j][0]||qs[i][1]===qs[j][1]||Math.abs(qs[i][0]-qs[j][0])===Math.abs(qs[i][1]-qs[j][1]))n++;
+  }
+  return n;
+}
+
+function cntQueens(){var n=0;for(var r=0;r<N;r++)for(var c=0;c<N;c++)if(board[r][c])n++;return n;}
+
+function updateStats(){
+  var qn=cntQueens(),cn=cntConflicts();
+  document.getElementById('elQC').textContent=qn+' / '+N;
+  document.getElementById('elCC').textContent=cn;
+  document.getElementById('elCC').style.color=cn>0?'#e74c3c':'#2ecc71';
+  document.getElementById('elPB').style.width=(qn/N*100)+'%';
+  var safe=0;
+  for(var r=0;r<N;r++)for(var c=0;c<N;c++)if(!board[r][c]&&isSafe(board,r,c))safe++;
+  document.getElementById('elSC').textContent=safe;
+  if(qn===0)setSt('Click a cell to place a queen ♛','');
+  else if(cn>0)setSt(cn+' conflict'+(cn>1?'s':'')+' — queens are attacking each other!','er');
+  else setSt(qn+' queen'+(qn>1?'s':'')+' placed safely. '+(N-qn)+' more needed.','');
+}
+
+function setSt(msg,cls){var e=document.getElementById('elST');e.textContent=msg;e.className='stxt'+(cls?' '+cls:'');}
+
+function checkWin(){
+  if(cntQueens()===N&&cntConflicts()===0){
+    setTimeout(function(){
+      document.getElementById('elWQ').textContent=N;
+      document.getElementById('elWM').textContent=moves;
+      document.getElementById('elWS').textContent=solving
+        ?'AI solved the '+N+'×'+N+' board using backtracking + pruning!'
+        :'You solved the '+N+'×'+N+' board manually — great work!';
+      document.getElementById('winOv').classList.add('show');
+      setSt('🎉 Solved! All queens placed perfectly!','ok');
+    },280);
+  }
+}
+
+function closeWin(){document.getElementById('winOv').classList.remove('show');}
+
+/* ════ CONTROLS ════ */
+function changeN(d){
+  if(solving)return;
+  var nxt=Math.max(4,Math.min(12,N+d));
+  if(nxt!==N){N=nxt;initBoard();}
+}
+function resetBoard(){if(solTmr)clearTimeout(solTmr);solving=false;initBoard();}
+function giveHint(){
+  if(solving)return;
+  for(var r=0;r<N;r++){
+    var hq=false;for(var c=0;c<N;c++)if(board[r][c]){hq=true;break;}
+    if(!hq){
+      for(var c=0;c<N;c++){
+        if(isSafe(board,r,c)){
+          var cell=gcell(r,c);
+          if(cell){
+            cell.classList.add('safe');
+            addLog('s','Hint: try ('+(r+1)+','+(c+1)+')');
+            setTimeout((function(cl){return function(){cl.classList.remove('safe');};})(cell),1600);
+          }
+          return;
+        }
+      }
+    }
+  }
+  addLog('s','No hint available — try Reset.');
+}
+
+/* ════ AI SOLVER ════ */
+function aiSolve(){
+  if(solving)return;
+  solving=true;
+  for(var r=0;r<N;r++)for(var c=0;c<N;c++)board[r][c]=false;
+  backtracks=0;pruned=0;nodes=0;
+  document.getElementById('elLog').innerHTML='';
+  addLog('s','AI solving '+N+'x'+N+' board…');
+  renderBoard();
+
+  var steps=[];
+  var tmp=[];
+  for(var r=0;r<N;r++){tmp.push([]);for(var c=0;c<N;c++)tmp[r].push(false);}
+
+  function snap(){
+    var s=[];
+    for(var r=0;r<N;r++){s.push([]);for(var c=0;c<N;c++)s[r].push(tmp[r][c]);}
+    return s;
+  }
+
+  function bt(row){
+    nodes++;
+    if(row===N)return true;
+    for(var col=0;col<N;col++){
+      if(isSafe(tmp,row,col)){
+        tmp[row][col]=true;
+        steps.push({t:'p',row:row,col:col,b:snap()});
+        var prune=false;
+        for(var fr=row+1;fr<N;fr++){
+          var ok=false;
+          for(var fc=0;fc<N;fc++){if(isSafe(tmp,fr,fc)){ok=true;break;}}
+          if(!ok){prune=true;pruned++;break;}
+        }
+        if(!prune&&bt(row+1))return true;
+        if(prune)steps.push({t:'x',row:row,col:col,b:snap()});
+        tmp[row][col]=false;backtracks++;
+        steps.push({t:'r',row:row,col:col,b:snap()});
+      }
+    }
+    return false;
+  }
+  bt(0);
+
+  var spd=N<=6?105:N<=8?65:32,idx=0;
+  function tick(){
+    if(!solving||idx>=steps.length){
+      solving=false;renderBoard();updateStats();checkWin();return;
+    }
+    var s=steps[idx++];
+    board=s.b;renderBoard();
+    if(s.t==='p') addLog('p','Row '+(s.row+1)+': place col '+(s.col+1));
+    else if(s.t==='r')addLog('r','Backtrack from ('+(s.row+1)+','+(s.col+1)+')');
+    else if(s.t==='x')addLog('x','Pruned — no safe col ahead');
+    document.getElementById('elBT').textContent=backtracks;
+    document.getElementById('elPR').textContent=pruned;
+    document.getElementById('elND').textContent=nodes;
+    updateStats();
+    solTmr=setTimeout(tick,spd);
+  }
+  solTmr=setTimeout(tick,spd);
+}
+
+/* ════ LOG ════ */
+function addLog(type,msg){
+  var box=document.getElementById('elLog');
+  var e=document.createElement('div');
+  e.className='le '+(type==='p'?'lp':type==='r'?'lr2':type==='x'?'lx':'ls2');
+  e.textContent='› '+msg;
+  box.appendChild(e);
+  if(box.children.length>80)box.removeChild(box.firstChild);
+  box.scrollTop=box.scrollHeight;
+}
+
+/* ════ NAV ════ */
+function showLearn(){
+  var g=document.getElementById('game');
+  g.classList.remove('show');g.style.display='none';
+  var l=document.getElementById('learn');
+  l.style.display='block';
+  setTimeout(function(){l.classList.add('show');},25);
+  buildChart();
+}
+function backToGame(){
+  var l=document.getElementById('learn');
+  l.classList.remove('show');l.style.display='none';
+  var g=document.getElementById('game');
+  g.style.display='flex';
+  setTimeout(function(){g.classList.add('show');},25);
+}
+function buildChart(){
+  var el=document.getElementById('elChart');el.innerHTML='';
+  var data=[{n:4,s:2},{n:5,s:10},{n:6,s:4},{n:7,s:40},{n:8,s:92},{n:9,s:352},{n:10,s:724}];
+  var mx=0;data.forEach(function(d){if(d.s>mx)mx=d.s;});
+  data.forEach(function(d){
+    var h=Math.max(3,Math.round(d.s/mx*85));
+    var w=document.createElement('div');w.className='bw2';
+    w.innerHTML='<div class="bv">'+d.s+'</div><div class="bb2" style="height:'+h+'px;"></div><div class="bl">N='+d.n+'</div>';
+    el.appendChild(w);
+  });
+}
+</script>
+</body>
+</html>
